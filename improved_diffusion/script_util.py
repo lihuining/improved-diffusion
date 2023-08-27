@@ -10,7 +10,7 @@ NUM_CLASSES = 1000
 
 def model_and_diffusion_defaults():
     """
-    Defaults for image training.
+    Defaults for image training.与模型和扩散相关的超参数
     """
     return dict(
         image_size=64,
@@ -36,15 +36,15 @@ def model_and_diffusion_defaults():
 
 
 def create_model_and_diffusion(
-    image_size,
+    image_size, # 模型接受图片大小
     class_cond,
-    learn_sigma,
+    learn_sigma, # 是否预测方差
     sigma_small,
     num_channels,
     num_res_blocks,
     num_heads,
     num_heads_upsample,
-    attention_resolutions,
+    attention_resolutions, # 在哪些ResBlock上做attention
     dropout,
     diffusion_steps,
     noise_schedule,
@@ -239,12 +239,13 @@ def create_gaussian_diffusion(
     rescale_learned_sigmas=False,
     timestep_respacing="",
 ):
-    betas = gd.get_named_beta_schedule(noise_schedule, steps)
+    "生成扩散过程的框架"
+    betas = gd.get_named_beta_schedule(noise_schedule, steps)  # 得到一个加噪方案
     if use_kl:
         loss_type = gd.LossType.RESCALED_KL
     elif rescale_learned_sigmas:
         loss_type = gd.LossType.RESCALED_MSE
-    else:
+    else: # DDPM
         loss_type = gd.LossType.MSE
     if not timestep_respacing:
         timestep_respacing = [steps]
@@ -269,6 +270,9 @@ def create_gaussian_diffusion(
 
 
 def add_dict_to_argparser(parser, default_dict):
+    '''
+    从字典当中解析传入的超参数,argument parser
+    '''
     for k, v in default_dict.items():
         v_type = type(v)
         if v is None:
@@ -282,7 +286,7 @@ def args_to_dict(args, keys):
     return {k: getattr(args, k) for k in keys}
 
 
-def str2bool(v):
+def str2bool(v): # 命令行传入的字符串转化为bool类型
     """
     https://stackoverflow.com/questions/15008758/parsing-boolean-values-with-argparse
     """

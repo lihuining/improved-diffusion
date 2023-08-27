@@ -28,10 +28,10 @@ def load_data(
         raise ValueError("unspecified data directory")
     all_files = _list_image_files_recursively(data_dir)
     classes = None
-    if class_cond:
+    if class_cond: # 是否为有条件生成
         # Assume classes are the first part of the filename,
         # before an underscore.
-        class_names = [bf.basename(path).split("_")[0] for path in all_files]
+        class_names = [bf.basename(path).split("_")[0] for path in all_files] # 假设下划线第一部分为类别
         sorted_classes = {x: i for i, x in enumerate(sorted(set(class_names)))}
         classes = [sorted_classes[x] for x in class_names]
     dataset = ImageDataset(
@@ -54,6 +54,7 @@ def load_data(
 
 
 def _list_image_files_recursively(data_dir):
+    "找到路径下所有图片"
     results = []
     for entry in sorted(bf.listdir(data_dir)):
         full_path = bf.join(data_dir, entry)
@@ -98,7 +99,7 @@ class ImageDataset(Dataset):
         crop_y = (arr.shape[0] - self.resolution) // 2
         crop_x = (arr.shape[1] - self.resolution) // 2
         arr = arr[crop_y : crop_y + self.resolution, crop_x : crop_x + self.resolution]
-        arr = arr.astype(np.float32) / 127.5 - 1
+        arr = arr.astype(np.float32) / 127.5 - 1 # 归一化到[-1,1]
 
         out_dict = {}
         if self.local_classes is not None:

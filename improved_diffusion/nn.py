@@ -21,7 +21,7 @@ class GroupNorm32(nn.GroupNorm):
 
 def conv_nd(dims, *args, **kwargs):
     """
-    Create a 1D, 2D, or 3D convolution module.
+    Create a 1D, 2D, or 3D convolution module.n表示卷积的维度.
     """
     if dims == 1:
         return nn.Conv1d(*args, **kwargs)

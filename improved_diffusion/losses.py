@@ -11,8 +11,8 @@ import torch as th
 
 def normal_kl(mean1, logvar1, mean2, logvar2):
     """
+    公式计算两个高斯分布的KL散度
     Compute the KL divergence between two gaussians.
-
     Shapes are automatically broadcasted, so batches can be compared to
     scalars, among other use cases.
     """
@@ -26,7 +26,7 @@ def normal_kl(mean1, logvar1, mean2, logvar2):
     # Force variances to be Tensors. Broadcasting helps convert scalars to
     # Tensors, but it does not work for th.exp().
     logvar1, logvar2 = [
-        x if isinstance(x, th.Tensor) else th.tensor(x).to(tensor)
+        x if isinstance(x, th.Tensor) else th.tensor(x).to(tensor) # 移动到与tensor相同的设备上
         for x in (logvar1, logvar2)
     ]
 
@@ -49,9 +49,9 @@ def approx_standard_normal_cdf(x):
 
 def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     """
+    连续分布累计分布的差分来模拟离散分布
     Compute the log-likelihood of a Gaussian distribution discretizing to a
     given image.
-
     :param x: the target images. It is assumed that this was uint8 values,
               rescaled to the range [-1, 1].
     :param means: the Gaussian mean Tensor.
@@ -59,18 +59,22 @@ def discretized_gaussian_log_likelihood(x, *, means, log_scales):
     :return: a tensor like x of log probabilities (in nats).
     """
     assert x.shape == means.shape == log_scales.shape
+    # 减去均值
     centered_x = x - means
-    inv_stdv = th.exp(-log_scales)
+    inv_stdv = th.exp(-log_scales) # 0.5 * out["log_variance"]
+    # 将[-1,1] 分成255个bins,最右边的CDF记为1,最左边的CDF记为0.
     plus_in = inv_stdv * (centered_x + 1.0 / 255.0)
-    cdf_plus = approx_standard_normal_cdf(plus_in)
+    cdf_plus = approx_standard_normal_cdf(plus_in) # 标准分布的累计分布函数
     min_in = inv_stdv * (centered_x - 1.0 / 255.0)
     cdf_min = approx_standard_normal_cdf(min_in)
-    log_cdf_plus = th.log(cdf_plus.clamp(min=1e-12))
+    log_cdf_plus = th.log(cdf_plus.clamp(min=1e-12)) # 确保最小值不为0
     log_one_minus_cdf_min = th.log((1.0 - cdf_min).clamp(min=1e-12))
+    # 用小范围的CDF之差来表示PDF
     cdf_delta = cdf_plus - cdf_min
+    # 考虑两个极限,最左边为0,最右边为1
     log_probs = th.where(
         x < -0.999,
-        log_cdf_plus,
+        log_cdf_plus, #log_cdf_plus - 0
         th.where(x > 0.999, log_one_minus_cdf_min, th.log(cdf_delta.clamp(min=1e-12))),
     )
     assert log_probs.shape == x.shape

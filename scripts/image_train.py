@@ -25,9 +25,9 @@ def main():
     logger.log("creating model and diffusion...")
     model, diffusion = create_model_and_diffusion(
         **args_to_dict(args, model_and_diffusion_defaults().keys())
-    )
+    ) # 得到UNet model和diffusion框架
     model.to(dist_util.dev())
-    schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion)
+    schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion) # 训练的时候t的分布
 
     logger.log("creating data loader...")
     data = load_data(
@@ -59,7 +59,7 @@ def main():
 
 def create_argparser():
     defaults = dict(
-        data_dir="",
+        data_dir="/home/allenyljiang/Documents/improved-diffusion/datasets/cifar_train",
         schedule_sampler="uniform",
         lr=1e-4,
         weight_decay=0.0,
@@ -72,8 +72,8 @@ def create_argparser():
         resume_checkpoint="",
         use_fp16=False,
         fp16_scale_growth=1e-3,
-    )
-    defaults.update(model_and_diffusion_defaults())
+    ) # 默认超参数
+    defaults.update(model_and_diffusion_defaults()) # 两个字典进行合并
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
     return parser

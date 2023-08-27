@@ -14,7 +14,7 @@ def create_named_schedule_sampler(name, diffusion):
     """
     if name == "uniform":
         return UniformSampler(diffusion)
-    elif name == "loss-second-moment":
+    elif name == "loss-second-moment": # 重要性采样
         return LossSecondMomentResampler(diffusion)
     else:
         raise NotImplementedError(f"unknown schedule sampler: {name}")

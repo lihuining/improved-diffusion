@@ -40,8 +40,8 @@ class TimestepEmbedSequential(nn.Sequential, TimestepBlock):
 
     def forward(self, x, emb):
         for layer in self:
-            if isinstance(layer, TimestepBlock):
-                x = layer(x, emb)
+            if isinstance(layer, TimestepBlock): # 继承自TimestepBlock的子类,此处只有ResBlock
+                x = layer(x, emb) # x:x_t
             else:
                 x = layer(x)
         return x
@@ -95,7 +95,7 @@ class Downsample(nn.Module):
         self.dims = dims
         stride = 2 if dims != 3 else (1, 2, 2)
         if use_conv:
-            self.op = conv_nd(dims, channels, channels, 3, stride=stride, padding=1)
+            self.op = conv_nd(dims, channels, channels, 3, stride=stride, padding=1) # 对空间维度每个方向缩小两倍
         else:
             self.op = avg_pool_nd(stride)
 
@@ -162,11 +162,11 @@ class ResBlock(TimestepBlock):
 
         if self.out_channels == channels:
             self.skip_connection = nn.Identity()
-        elif use_conv:
+        elif use_conv: # 通道数目改变,不改变空间维度
             self.skip_connection = conv_nd(
                 dims, channels, self.out_channels, 3, padding=1
             )
-        else:
+        else: # 1*1卷积
             self.skip_connection = conv_nd(dims, channels, self.out_channels, 1)
 
     def forward(self, x, emb):
@@ -223,11 +223,11 @@ class AttentionBlock(nn.Module):
         b, c, *spatial = x.shape
         x = x.reshape(b, c, -1)
         qkv = self.qkv(self.norm(x))
-        qkv = qkv.reshape(b * self.num_heads, -1, qkv.shape[2])
+        qkv = qkv.reshape(b * self.num_heads, -1, qkv.shape[2]) # [b*num_heads,seq,feature_dim]
         h = self.attention(qkv)
         h = h.reshape(b, -1, h.shape[-1])
         h = self.proj_out(h)
-        return (x + h).reshape(b, c, *spatial)
+        return (x + h).reshape(b, c, *spatial) # 带残差的注意力机制
 
 
 class QKVAttention(nn.Module):
@@ -334,15 +334,16 @@ class UNetModel(nn.Module):
         self.num_heads_upsample = num_heads_upsample
 
         time_embed_dim = model_channels * 4
+        # 对输入的time step进行变换
         self.time_embed = nn.Sequential(
             linear(model_channels, time_embed_dim),
             SiLU(),
             linear(time_embed_dim, time_embed_dim),
         )
-
+        # 如果是条件生成的话,还有label embedding
         if self.num_classes is not None:
             self.label_emb = nn.Embedding(num_classes, time_embed_dim)
-
+        # UNET左边部分,ModuleList实例化参数一般是列表
         self.input_blocks = nn.ModuleList(
             [
                 TimestepEmbedSequential(
@@ -360,7 +361,7 @@ class UNetModel(nn.Module):
                         ch,
                         time_embed_dim,
                         dropout,
-                        out_channels=mult * model_channels,
+                        out_channels=mult * model_channels, # 通道数目不断扩大
                         dims=dims,
                         use_checkpoint=use_checkpoint,
                         use_scale_shift_norm=use_scale_shift_norm,
@@ -381,7 +382,7 @@ class UNetModel(nn.Module):
                 )
                 input_block_chans.append(ch)
                 ds *= 2
-
+        # Unet最底部的一层
         self.middle_block = TimestepEmbedSequential(
             ResBlock(
                 ch,
@@ -407,7 +408,7 @@ class UNetModel(nn.Module):
             for i in range(num_res_blocks + 1):
                 layers = [
                     ResBlock(
-                        ch + input_block_chans.pop(),
+                        ch + input_block_chans.pop(), # 弹出最后一个
                         time_embed_dim,
                         dropout,
                         out_channels=model_channels * mult,
@@ -427,7 +428,7 @@ class UNetModel(nn.Module):
                     )
                 if level and i == num_res_blocks:
                     layers.append(Upsample(ch, conv_resample, dims=dims))
-                    ds //= 2
+                    ds //= 2 # 通道输出减小
                 self.output_blocks.append(TimestepEmbedSequential(*layers))
 
         self.out = nn.Sequential(
@@ -465,7 +466,7 @@ class UNetModel(nn.Module):
 
         :param x: an [N x C x ...] Tensor of inputs.
         :param timesteps: a 1-D batch of timesteps.
-        :param y: an [N] Tensor of labels, if class-conditional.
+        :param y: an [N] Tensor of labels, if class-conditional. 做条件生成传入y.
         :return: an [N x C x ...] Tensor of outputs.
         """
         assert (y is not None) == (
@@ -473,9 +474,9 @@ class UNetModel(nn.Module):
         ), "must specify y if and only if the model is class-conditional"
 
         hs = []
-        emb = self.time_embed(timestep_embedding(timesteps, self.model_channels))
+        emb = self.time_embed(timestep_embedding(timesteps, self.model_channels)) # 使用正余弦表示,对不同timestep进行差异化的表示即可.
 
-        if self.num_classes is not None:
+        if self.num_classes is not None: # 条件生成,条件embedding与time step embedding加起来
             assert y.shape == (x.shape[0],)
             emb = emb + self.label_emb(y)
 

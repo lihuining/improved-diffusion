@@ -63,7 +63,7 @@ def space_timesteps(num_timesteps, section_counts):
 class SpacedDiffusion(GaussianDiffusion):
     """
     A diffusion process which can skip steps in a base diffusion process.
-
+    IDDPM当中spaced time step
     :param use_timesteps: a collection (sequence or set) of timesteps from the
                           original diffusion process to retain.
     :param kwargs: the kwargs to create the base diffusion process.
@@ -87,12 +87,12 @@ class SpacedDiffusion(GaussianDiffusion):
 
     def p_mean_variance(
         self, model, *args, **kwargs
-    ):  # pylint: disable=signature-differs
+    ):  # pylint: disable=signature-differs,神经网络预测的均值和方差
         return super().p_mean_variance(self._wrap_model(model), *args, **kwargs)
 
     def training_losses(
         self, model, *args, **kwargs
-    ):  # pylint: disable=signature-differs
+    ):  # pylint: disable=signature-differs,不同目标函数
         return super().training_losses(self._wrap_model(model), *args, **kwargs)
 
     def _wrap_model(self, model):
@@ -108,6 +108,7 @@ class SpacedDiffusion(GaussianDiffusion):
 
 
 class _WrappedModel:
+    "对模型包裹以及对time step进行后处理"
     def __init__(self, model, timestep_map, rescale_timesteps, original_num_steps):
         self.model = model
         self.timestep_map = timestep_map
